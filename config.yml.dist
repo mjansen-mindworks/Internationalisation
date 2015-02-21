@@ -1,0 +1,55 @@
+# i18n configuration
+
+# how to detect the user language (query/domain)
+detection: query
+
+# the available locales
+locales:
+#   cs_CZ:
+#       query: cs
+#       domain: cz
+#   de_DE:
+#       query: de
+#       domain: de
+#   el:
+#       query: el
+#       domain: gr
+    en_GB:
+        query: en
+        domain: com
+#   es:
+#       query: es
+#       domain: es
+#   fi:
+#       query: fi
+#       domain: fi
+#   fr:
+#       query: fr
+#       domain: fr
+#   hu:
+#       query: hu
+#       domain: hu
+#   id:
+#       query: id
+#       domain: id
+#   it:
+#       query: it
+#       domain: it
+#   ja:
+#       query: ja
+#       domain: jp
+#   nb:
+#       query: nb
+#       domain: no
+#   nl_NL:
+#       query: nl
+#       domain: nl
+#   pt:
+#       query: pt
+#       domain: pt
+#   ru:
+#       query: ru
+#       domain: ru
+#   zh_CN:
+#       query: zh
+#       domain: cn

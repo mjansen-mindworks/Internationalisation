@@ -1,0 +1,29 @@
+{
+    "name": "danielkulbe/i18n",
+    "description": "Internationalisation for bolt",
+    "type": "bolt-extension",
+    "keywords": [
+        "i18n", "internationalisation", "localisation", "locale", "translate", "multilingual"
+    ],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Daniel Kulbe",
+            "email": "info@daniel-kulbe.de"
+        }
+    ],
+    "require": {
+        "bolt/bolt": ">=2.0.0,<3.0.0"
+    },
+    "autoload": {
+        "files": [
+            "init.php"
+        ],
+        "psr-4": {
+            "Bolt\\Extension\\DanielKulbe\\Internationalisation\\": ""
+        }
+    },
+    "extra": {
+        "bolt-assets": "assets"
+    }
+}

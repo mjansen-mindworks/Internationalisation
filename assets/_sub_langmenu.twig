@@ -1,0 +1,10 @@
+<nav class="lang">
+    <ul>
+        {% for locale in locales %}
+        <li class="index-{{ loop.index }}{% if loop.first %} first{% endif %}{% if loop.last %} last{% endif %}">
+            <a href="{{ locale|i18n_link }}"{% if locale is same as(current) %}class="current"{% endif %} title="{{ locale|i18n_lang }}">
+                {{ locale|i18n_lang }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+</nav>

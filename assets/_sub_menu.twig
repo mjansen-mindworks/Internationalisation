@@ -1,0 +1,23 @@
+{% set i18n_token = '_' ~ app.config.get('general/locale', 'en_GB')[0:2] %}
+{% macro display_menu_item(item, i18n_token, loop) %}
+<li class="index-{{ loop.index }}{% if loop.first %} first{% endif %}{% if loop.last %} last{% endif %}">
+    <a href="{{ item.link }}" {% if item.title is defined %}title='{{ (item['title'~i18n_token] is defined ? item['title'~i18n_token] : item.title)|escape }}'{% endif %}
+       class='{% if item|current %}current {% endif %}{% if item.class is defined %}{{item.class}}{% endif %}'>{{ item['label'~i18n_token] is defined ? item['label'~i18n_token] : item.label }}</a>
+
+    {% if item.submenu is defined %}
+        <ul>
+            {% for submenu in item.submenu %}
+                {{ _self.display_menu_item(submenu, i18n_token, loop) }}
+            {% endfor %}
+        </ul>
+    {% endif %}
+</li>
+{% endmacro %}
+
+<nav class="{{name}}">
+    <ul class="bolt-menu">
+    {% for item in menu %}
+        {{ _self.display_menu_item(item, i18n_token, loop) }}
+    {% endfor %}
+    </ul>
+</nav>
