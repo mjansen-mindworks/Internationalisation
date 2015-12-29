@@ -6,17 +6,16 @@ namespace Bolt\Extension\DanielKulbe\Internationalisation;
 use Bolt\Application;
 use Bolt\BaseExtension;
 use Bolt\Content;
-use Bolt\Helpers\String;
-use Bolt\Library as Lib;
-use Bolt\Translation\Translator as Trans;
-
 use Bolt\Controllers\Async;
 use Bolt\Controllers\Backend;
 use Bolt\Controllers\Routing;
-
+use Bolt\Library as Lib;
+use Bolt\Translation\Translator as Trans;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Intl\Intl;
 use Symfony\Component\Intl\Language;
+use Symfony\Component\Intl\ResourceBundle\LanguageBundleInterface;
 
 class Extension extends BaseExtension
 {
@@ -29,11 +28,15 @@ class Extension extends BaseExtension
 
     protected $default_locale;
 
+    /** @var SessionInterface */
     protected $session;
 
+    /** @var LanguageBundleInterface */
     protected $language;
 
     public $locale = null;
+
+    private $request;
 
 
     /**
@@ -68,8 +71,9 @@ class Extension extends BaseExtension
         $this->saveLocale($this->getLocale());
 
         // Indicate content menu shall be fetched from translation
-        if ( $this->locale == $this->default_locale)
+        if ($this->locale == $this->default_locale) {
             $this->app['i18n'] = $this->locale;
+        }
 
         // Make language change in administration menu available
         $this->languageMenuAdmin();
@@ -119,7 +123,9 @@ class Extension extends BaseExtension
     private function getLocale ()
     {
         // if already performed
-        if (!empty($this->locale)) return $this->locale;
+        if (!empty($this->locale)) {
+            return $this->locale;
+        }
 
         // else iterate over possibilities
         $locale = null;
@@ -148,10 +154,14 @@ class Extension extends BaseExtension
         }
 
         // weight: 2 - from session
-        if (empty($locale)) $locale = $this->session->get('locale');
+        if (empty($locale)) {
+            $locale = $this->session->get('locale');
+        }
 
         // weight: 3 - from cookie
-        if (empty($locale)) $locale = $this->request->cookies->get('bolt_locale');
+        if (empty($locale)) {
+            $locale = $this->request->cookies->get('bolt_locale');
+        }
 
         // weight: 4 - default / validation
         return empty($locale) || !array_key_exists($locale, $this->config['locales']) ? $this->default_locale : $locale;
@@ -195,30 +205,38 @@ class Extension extends BaseExtension
 
         # remember locale in session
         $in_session = $this->session->get('locale');
-        if (empty($in_session) || $in_session !== $this->locale) $this->session->set('locale', $this->locale);
+        if (empty($in_session) || $in_session !== $this->locale) {
+            $this->session->set('locale', $this->locale);
+        }
 
         # remember locale in cookie
         $in_cookie = $this->request->cookies->get('bolt_locale');
-        if (empty($in_cookie) || $in_cookie !== $this->locale) setcookie(
-            'bolt_locale',
-            $this->locale,
-            time() + $this->app['config']->get('general/cookies_lifetime'),
-            '/',
-            $this->app['config']->get('general/cookies_domain'),
-            $this->app['config']->get('general/cookies_https_only'),
-            true
-        );
+        if (empty($in_cookie) || $in_cookie !== $this->locale) {
+            setcookie(
+                'bolt_locale',
+                $this->locale,
+                time() + $this->app['config']->get('general/cookies_lifetime'),
+                '/',
+                $this->app['config']->get('general/cookies_domain'),
+                $this->app['config']->get('general/cookies_https_only'),
+                true
+            );
+        }
     }
 
 
     /**
      * i18n_lang Twig function/filter callback
      *
+     * @param $locale
+     *
      * @return null
      */
     public function languageNameFromLocale($locale)
     {
-        if (!isset($locale)) $locale = $this->locale;
+        if (!isset($locale)) {
+            $locale = $this->locale;
+        }
 
         return $this->language->getLanguageName(substr($locale, 0, 2));
     }
@@ -227,11 +245,15 @@ class Extension extends BaseExtension
     /**
      * i18n_link Twig function/filter callback
      *
+     * @param $locale
+     *
      * @return null
      */
     public function languageLink ($locale)
     {
-        if (!isset($locale)) $locale = $this->locale;
+        if (!isset($locale)) {
+            $locale = $this->locale;
+        }
 
         switch ($this->config['detection']) {
             case 'query':
@@ -272,8 +294,16 @@ class Extension extends BaseExtension
     private function languageMenuAdmin ()
     {
         foreach ($this->config['locales'] as $locale => $values) {
-            if ($locale != $this->locale)
-                $this->addMenuOption(Trans::__('Switch to %language%', array('%language%' => $this->languageNameFromLocale($locale))), $this->languageLink($locale), "fa:flag");
+            if ($locale != $this->locale) {
+                $this->addMenuOption(
+                    Trans::__(
+                        'Switch to %language%',
+                        ['%language%' => $this->languageNameFromLocale($locale)]
+                    ),
+                    $this->languageLink($locale),
+                    "fa:flag"
+                );
+            }
         }
     }
 
@@ -299,7 +329,9 @@ class Extension extends BaseExtension
                 // copy and change label
                 if (isset($value['i18n']) && $value['i18n'] === true) {
                     foreach ($this->config['locales'] as $locale => $x) {
-                        if ($locale == $this->default_locale) continue;
+                        if ($locale == $this->default_locale) {
+                            continue;
+                        }
 
                         $newkey = $fieldkey.'_'.substr($locale, 0, 2);
 
@@ -416,8 +448,8 @@ class Extension extends BaseExtension
             $name = strtolower($identifier);
             $menu = $menus[$identifier];
         } else {
-            $name = strtolower(\utilphp\util::array_first_key($menus));
-            $menu = \utilphp\util::array_first($menus);
+            $name = strtolower(\util::array_first_key($menus));
+            $menu = \util::array_first($menus);
         }
 
         // If the menu loaded is null, replace it with an empty array instead of
