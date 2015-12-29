@@ -14,7 +14,6 @@ use Bolt\Translation\Translator as Trans;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Intl\Intl;
-use Symfony\Component\Intl\Language;
 use Symfony\Component\Intl\ResourceBundle\LanguageBundleInterface;
 
 class Extension extends BaseExtension
@@ -267,7 +266,7 @@ class Extension extends BaseExtension
                 break;
         }
 
-        return Lib::fixPath($link);
+        return $this->fixPath($link);
     }
 
 
@@ -423,7 +422,7 @@ class Extension extends BaseExtension
 
             } else {
                 // we assume the user links to this on purpose.
-                $item['link'] = Lib::fixPath($this->app['paths']['root'] . $item['path']);
+                $item['link'] = $this->fixPath($this->app['paths']['root'] . $item['path']);
             }
 
         }
@@ -510,5 +509,50 @@ class Extension extends BaseExtension
         }
 
         return $field;
+    }
+
+
+    /**
+     * Cleans up/fixes a relative paths.
+     *
+     * As an example '/site/pivotx/../index.php' becomes '/site/index.php'.
+     * In addition (non-leading) double slashes are removed.
+     *
+     * @param  string $path
+     * @param  bool   $nodoubleleadingslashes
+     *
+     * @return string
+     */
+    public static function fixPath($path, $nodoubleleadingslashes = true)
+    {
+        $path = str_replace("\\", "/", rtrim($path, '/'));
+
+        // Handle double leading slash (that shouldn't be removed).
+        if (!$nodoubleleadingslashes && (strpos($path, '//') === 0)) {
+            $lead = '//';
+            $path = substr($path, 2);
+        } else {
+            $lead = '';
+        }
+
+        $patharray = explode('/', preg_replace('#/+#', '/', $path));
+        $newPath   = [];
+
+        foreach ($patharray as $item) {
+            if ($item == '..') {
+                // remove the previous element
+                @array_pop($newPath);
+            } elseif ($item == 'http:') {
+                // Don't break for URLs with http:// scheme
+                $newPath[] = 'http:/';
+            } elseif ($item == 'https:') {
+                // Don't break for URLs with https:// scheme
+                $newPath[] = 'https:/';
+            } elseif (($item != '.')) {
+                $newPath[] = $item;
+            }
+        }
+
+        return $lead . implode('/', $newPath);
     }
 }
