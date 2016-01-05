@@ -20,7 +20,9 @@
             "init.php"
         ],
         "psr-4": {
-            "Bolt\\Extension\\DanielKulbe\\Internationalisation\\": ""
+            "Bolt\\Extension\\DanielKulbe\\Internationalisation\\": [
+                ""
+            ]
         }
     },
     "extra": {

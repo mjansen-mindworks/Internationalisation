@@ -18,13 +18,13 @@ use Symfony\Component\Intl\ResourceBundle\LanguageBundleInterface;
 
 class Extension extends BaseExtension
 {
+    const FLAG_CONTENTTYPE_I18N = 'i18n';
+
     /**
      * Extension name
      *
      * @var string
      */
-    const NAME = 'i18n';
-
     protected $default_locale;
 
     /** @var SessionInterface */
@@ -89,7 +89,7 @@ class Extension extends BaseExtension
      */
     public function getName()
     {
-        return Extension::NAME;
+        return 'i18n';
     }
 
 
@@ -130,26 +130,19 @@ class Extension extends BaseExtension
         $locale = null;
 
         // weight: 1 - by selected detection
-        switch ($this->config['detection']) {
-            case 'query':
-            default:
-                $lang = $this->request->query->get('lang');
-
-                if (!empty($lang)) while (list($locale, $detection) = each($this->config['locales'])) {
-                    if ($detection['query'] === $lang) {
-                        $this->locale = $locale;
-                        break 2;
-                    }
+        if('domain' == $this->config['detection']) {
+            foreach ($this->config['locales'] as $locale => $detection) {
+                if (preg_match("/\\." . $detection['domain'] . "$/", $locale)) {
+                    $this->locale = $locale;
                 }
-                break;
-            case 'domain':
-                while (list($locale, $detection) = each($this->config['locales'])) {
-                    if(preg_match("/\\.".$detection['domain']."$/", $locale)) {
-                        $this->locale = $locale;
-                        break 2;
-                    }
+            }
+        } else if ('query' == $this->config['detection']) {
+            $lang = $this->request->query->get('lang');
+            foreach ($this->config['locales'] as $locale => $detection) {
+                if ($detection['query'] === $lang) {
+                    $this->locale = $locale;
                 }
-                break;
+            }
         }
 
         // weight: 2 - from session
@@ -163,7 +156,11 @@ class Extension extends BaseExtension
         }
 
         // weight: 4 - default / validation
-        return empty($locale) || !array_key_exists($locale, $this->config['locales']) ? $this->default_locale : $locale;
+        if(empty($locale) || !array_key_exists($locale, $this->config['locales'])) {
+            $locale = $this->default_locale;
+        }
+
+        return $locale;
     }
 
 
@@ -315,38 +312,57 @@ class Extension extends BaseExtension
      */
     private function i18nContent()
     {
-        $tempContentTypes = $this->app['config']->get('contenttypes');
+        $types = $this->app['config']->get('contenttypes');
+        $localisedTypes = [];
 
-        foreach ($tempContentTypes as $key => $temp) {
-            $tempfields = $temp['fields'];
-            $newfields = array();
+        foreach ($types as $type => $config) {
+            $localisedTypes[$type] = $config;
+            $localisedTypes[$type]['fields'] = [];
 
-            foreach ($tempfields as $fieldkey => $value) {
-                // keep original
-                $newfields[$fieldkey] = $value;
+            foreach ($config['fields'] as $fieldName => $properties) {
+                $localisationEnabled = array_key_exists(self::FLAG_CONTENTTYPE_I18N, $properties)
+                    && $properties[self::FLAG_CONTENTTYPE_I18N];
 
-                // copy and change label
-                if (isset($value['i18n']) && $value['i18n'] === true) {
-                    foreach ($this->config['locales'] as $locale => $x) {
-                        if ($locale == $this->default_locale) {
-                            continue;
-                        }
+                foreach ($this->config['locales'] as $locale => $unused) {
+                    $hasLocalizedDependencies = false;
+                    $localeSuffix             = '_' . substr($locale, 0, 2);
+                    $localisedProperties = $properties;
+                    $localisedLabel = array_key_exists('label', $properties)
+                        ? $properties['label']
+                        : ucfirst($fieldName);
 
-                        $newkey = $fieldkey.'_'.substr($locale, 0, 2);
+                    if (array_key_exists('uses', $localisedProperties)) {
+                        $localisedUses = array_map(function($usedField) use ($localeSuffix, $config) {
+                            return array_key_exists($usedField, $config['fields'])
+                                && array_key_exists(self::FLAG_CONTENTTYPE_I18N, $config['fields'][$usedField])
+                                && $config['fields'][$usedField][self::FLAG_CONTENTTYPE_I18N]
+                                ? $usedField . $localeSuffix
+                                : $usedField;
+                        }, $properties['uses']);
+                        $hasLocalizedDependencies = !empty(array_diff($localisedUses, $properties['uses']));
+                        $localisedProperties['uses'] = $localisedUses;
+                    }
 
-                        $newfields[$newkey] = $value;
-                        $newfields[$newkey]['label'] = (isset($newfields[$newkey]['label']) ?
-                            $newfields[$newkey]['label'] : ucfirst($fieldkey) ) . ' (' . $this->languageNameFromLocale($locale) . ')';
+                    if ($localisationEnabled || $hasLocalizedDependencies) {
+                        $localisedFieldName = $fieldName . $localeSuffix;
+                        $localisedProperties['label'] = sprintf(
+                            '%s (%s)',
+                            $localisedLabel,
+                            $this->languageNameFromLocale($locale)
+                        );
+                    } else {
+                        $localisedFieldName = $fieldName;
+                        $localisedProperties['label'] = $localisedLabel;
+                    }
 
-                        unset($newfields[$newkey]['i18n']);
+                    if (!array_key_exists($localisedFieldName, $localisedTypes[$type]['fields'])) {
+                        $localisedTypes[$type]['fields'][$localisedFieldName] = $localisedProperties;
                     }
                 }
             }
-
-            $tempContentTypes[$key]['fields'] = $newfields;
         }
 
-        $this->app['config']->set('contenttypes', $tempContentTypes);
+        $this->app['config']->set('contenttypes', $localisedTypes);
     }
 
 
@@ -361,9 +377,8 @@ class Extension extends BaseExtension
         foreach ($menu as $key => $item) {
             $menu[$key] = $this->menuHelper($item);
             if (isset($item['submenu'])) {
-                    $menu[$key]['submenu'] = $this->menuBuilder($item['submenu']);
+                $menu[$key]['submenu'] = $this->menuBuilder($item['submenu']);
             }
-
         }
 
         return $menu;
@@ -447,8 +462,8 @@ class Extension extends BaseExtension
             $name = strtolower($identifier);
             $menu = $menus[$identifier];
         } else {
-            $name = strtolower(\util::array_first_key($menus));
-            $menu = \util::array_first($menus);
+            $name = strtolower(array_keys($menus)[0]);
+            $menu = array_values($menus)[0];
         }
 
         // If the menu loaded is null, replace it with an empty array instead of
@@ -501,10 +516,11 @@ class Extension extends BaseExtension
 
                         $test = $i18nField instanceof \Twig_Markup ? !$i18nField->count() : empty($i18nField);
 
-                        if (!$test) $field = $i18nField;
+                        if (!$test) {
+                            $field = $i18nField;
+                        }
                     }
                 }
-
             }
         }
 
