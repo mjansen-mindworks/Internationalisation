@@ -128,7 +128,7 @@ class Extension extends BaseExtension
         if('domain' == $this->config['detection']) {
             foreach ($this->config['locales'] as $key => $detection) {
                 if (preg_match("/\\." . $detection['domain'] . "$/", $key)) {
-                    $locale = $locale;
+                    $locale = $key;
                 }
             }
         } else if ('query' == $this->config['detection']) {
@@ -151,6 +151,7 @@ class Extension extends BaseExtension
         if(empty($locale) || !array_key_exists($locale, $this->config['locales'])) {
             $locale = $this->default_locale;
         }
+
         return $locale;
     }
 
