@@ -121,45 +121,36 @@ class Extension extends BaseExtension
      */
     private function getLocale ()
     {
-        // if already performed
-        if (!empty($this->locale)) {
-            return $this->locale;
-        }
-
         // else iterate over possibilities
         $locale = null;
 
         // weight: 1 - by selected detection
         if('domain' == $this->config['detection']) {
-            foreach ($this->config['locales'] as $locale => $detection) {
-                if (preg_match("/\\." . $detection['domain'] . "$/", $locale)) {
-                    $this->locale = $locale;
+            foreach ($this->config['locales'] as $key => $detection) {
+                if (preg_match("/\\." . $detection['domain'] . "$/", $key)) {
+                    $locale = $locale;
                 }
             }
         } else if ('query' == $this->config['detection']) {
             $lang = $this->request->query->get('lang');
-            foreach ($this->config['locales'] as $locale => $detection) {
-                if ($detection['query'] === $lang) {
-                    $this->locale = $locale;
+            foreach ($this->config['locales'] as $key => $detection) {
+                if (substr($key, 0, 2) === $lang) {
+                    $locale = $key;
                 }
             }
         }
-
         // weight: 2 - from session
         if (empty($locale)) {
             $locale = $this->session->get('locale');
         }
-
         // weight: 3 - from cookie
         if (empty($locale)) {
             $locale = $this->request->cookies->get('bolt_locale');
         }
-
         // weight: 4 - default / validation
         if(empty($locale) || !array_key_exists($locale, $this->config['locales'])) {
             $locale = $this->default_locale;
         }
-
         return $locale;
     }
 
@@ -173,7 +164,6 @@ class Extension extends BaseExtension
     private function saveLocale ($locale)
     {
         $this->locale = $locale;
-
         if ($this->locale != $this->default_locale) {
             $this->app['config']->set('general/locale', $this->locale);
             // Set default locale
@@ -500,31 +490,24 @@ class Extension extends BaseExtension
      */
     public function localizedField ($record, $fieldname)
     {
-        $field = null;
+        $i18nField = $this->localizeFieldName($fieldname);
 
-        if (!empty($record) && is_object($record) && $record instanceof Content) {
-            $field = $record->getDecodedValue($fieldname);
-            if (!empty($field)) {
-                $info = $record->fieldinfo($fieldname);
-
-                if (isset($info['i18n']) && $info['i18n'] === true) {
-                    $lang = substr($this->locale, 0, 2);
-
-                    if (!preg_match('/_'.$lang.'$/', $fieldname)) {
-                        $i18nFieldname = $fieldname .'_'.$lang;
-                        $i18nField = $record->getDecodedValue($i18nFieldname);
-
-                        $test = $i18nField instanceof \Twig_Markup ? !$i18nField->count() : empty($i18nField);
-
-                        if (!$test) {
-                            $field = $i18nField;
-                        }
-                    }
-                }
-            }
+        if ($record instanceof Content) {
+            return !empty($record->getDecodedValue($i18nField))
+                ? $record->getDecodedValue($i18nField)
+                : $record->getDecodedValue($fieldname);
         }
 
-        return $field;
+        return null;
+    }
+
+    private function localizeFieldName($fieldname, $locale = null)
+    {
+        if(is_null($locale)) {
+            $locale = substr($this->locale, 0, 2);
+        }
+
+        return $fieldname . '_' . $locale;
     }
 
 
